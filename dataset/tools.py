@@ -34,3 +34,4 @@ if __name__ == '__main__':
 
     plt.imshow(data[1][1][1], cmap='gray', interpolation='bicubic')
     plt.show()
+    print(_int64_feature(data))
