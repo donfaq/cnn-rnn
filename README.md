@@ -1,2 +1,2 @@
-# cnn-rnn
-Combination of convolutional and recurrent neural networks
+# CNN-RNN
+Combination of convolutional and recurrent neural networks for activity analysis

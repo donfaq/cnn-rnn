@@ -28,10 +28,10 @@ def video_to_frames(filename, step):
 
 
 if __name__ == '__main__':
-    data = group(video_to_frames("11_2_3.avi", 2))
+    data = group(video_to_frames("src/11_2_3.avi", 2))
     print(data[0][1][1] is data[1][0][1])
     # True [[[1, img1], [2,img2], [3,img3], [[2,img2], [..], [..]]]
 
     plt.imshow(data[1][1][1], cmap='gray', interpolation='bicubic')
     plt.show()
-    print(_int64_feature(data))
+    print(data)
