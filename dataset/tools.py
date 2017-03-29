@@ -1,5 +1,6 @@
 import cv2
 from matplotlib import pyplot as plt
+import numpy as np
 
 
 def group(data, batch=3, step=1):
@@ -16,22 +17,22 @@ def group(data, batch=3, step=1):
 def video_to_frames(filename, step):
     vid = cv2.VideoCapture(filename)
     elements = []
-    count = 0
     hasNext = True
     while hasNext:
         hasNext, image = vid.read()
         if not hasNext:
             break
-        count += 1
-        elements.append(tuple((count, image)))
+        image = image.tobytes()
+        elements.append(image)
     return elements
 
 
 if __name__ == '__main__':
     data = group(video_to_frames("src/11_2_3.avi", 2))
-    print(data[0][1][1] is data[1][0][1])
-    # True [[[1, img1], [2,img2], [3,img3], [[2,img2], [..], [..]]]
+    assert isinstance(data[0][1], bytes)
 
-    plt.imshow(data[1][1][1], cmap='gray', interpolation='bicubic')
-    plt.show()
-    print(data)
+
+    # assert data[0][1] is data[1][0]
+    #
+    # plt.imshow(data[1][1])
+    # plt.show()
