@@ -1,5 +1,5 @@
 import os
-
+import io
 import tensorflow as tf
 import cv2
 from PIL import Image
@@ -93,7 +93,6 @@ def convert_to_example(filename, group, image_encoded, label, height, width):
 
 
 def decode_jpeg(image_data):
-    print(image_data)
     _decode_jpeg_data = tf.placeholder(dtype=tf.string)
     _decoded_jpeg = tf.image.decode_jpeg(_decode_jpeg_data, channels=3)
     return tf.Session().run(_decoded_jpeg, feed_dict={_decode_jpeg_data: image_data})
@@ -121,7 +120,8 @@ def write_to_tfr(filename, output_filename):
     writer.close()
 
 
-def write_batch(path, output_path):
+def write_batch(path, video):
+    output_path = '{video}.tfrecords'.format(video=video)
     writer = tf.python_io.TFRecordWriter(output_path)
     for file in tf.gfile.Glob(path):
         image_buffer, height, width = process_image(file)
@@ -151,13 +151,14 @@ def read_from_tfr(filename_queue, image_number):
 
 
 if __name__ == '__main__':
-    sample_videofile("1.avi")
+    video = '1.avi'
+    sample_videofile(video)
 
-    # write_batch('*.jpg', '11_2_3.tfrecords')
-    # queue = tf.train.string_input_producer(['11_2_3.tfrecords'])
-    #
-    # output = read_from_tfr(queue, 5)
-    # print(output[1]['height'], output[1]['width'])
-    # image_bytes = output[4]['image']
-    # image = Image.open(io.BytesIO(image_bytes))  # тут картинка с песиком
-    # image.show()
+    write_batch('{video}_frames/*.jpg'.format(video=video), video)
+    queue = tf.train.string_input_producer(['11_2_3.tfrecords'])
+
+    output = read_from_tfr(queue, 140)
+    print(output[1]['height'], output[1]['width'])
+    image_bytes = output[133]['image']
+    image = Image.open(io.BytesIO(image_bytes))  # тут картинка с песиком
+    image.show()
