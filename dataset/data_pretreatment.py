@@ -12,7 +12,8 @@ class Frames:
     number_of_frames = int
     number_of_grouped_frames = int
 
-    def __init__(self, videofile_name, group_length=3, step=1):
+    def __init__(self, session, videofile_name, group_length=3, step=1):
+        self.sess = session
         self.videofile_name = videofile_name
         self.number_of_frames = 0
         self.video_to_frames()
@@ -47,7 +48,7 @@ class Frames:
         self.number_of_grouped_frames = len(self.grouped_frames)
 
     def decode_frames(self):
-        with tf.Session():
+        with self.sess:
             for frame in self.grouped_frames:
                 self.grouped_frames_decoded.append(
                     tf.image.encode_jpeg(frame, format='rgb', quality=100).eval())
@@ -57,7 +58,8 @@ class Dataset:
     VIDEOS_PATH_PATTERN = ''
     videofiles_names_list = []
 
-    def __init__(self, input_path):
+    def __init__(self, session, input_path):
+        self.sess = session
         self.VIDEOS_PATH_PATTERN = input_path
         self.videofiles_names_list = tf.gfile.Glob(input_path)
 
@@ -65,7 +67,7 @@ class Dataset:
         for vname in self.videofiles_names_list:
             with open('{vname}.tfrecord'.format(vname=vname), 'w') as tfrecord:
                 writer = tf.python_io.TFRecordWriter(tfrecord.name)
-                frames = Frames(vname, group_length=group_length, step=step)
+                frames = Frames(self.sess, vname, group_length=group_length, step=step)
                 example = self.make_sequence_example(frames)
                 writer.write(example.SerializeToString())
                 writer.close()
@@ -75,8 +77,8 @@ class Dataset:
     def make_sequence_example(frames):
         example_sequence = tf.train.SequenceExample()
         example_sequence.context.feature["length"].int64_list.value.append(frames.number_of_grouped_frames)
-        frames_sequence = example_sequence.feature_lists.feature_list["frames"]
-        groups = example_sequence.feature_lists.feature_list["groups"]
+        frames_sequence = example_sequence.feature_lists.feature_list["frame"]
+        groups = example_sequence.feature_lists.feature_list["group"]
         number_in_group = example_sequence.feature_lists.feature_list["number_in_group"]
         for frame, group, number in zip(frames.grouped_frames_decoded, frames.group_numbers_sequence,
                                         frames.frames_number_in_group):
@@ -88,10 +90,33 @@ class Dataset:
                 number_in_group.feature.add().int64_list.value.append(number)
         return example_sequence
 
+    @staticmethod
+    def parse_single_example(filename):
+        filename_queue = tf.train.string_input_producer([filename], num_epochs=1)
+        reader = tf.TFRecordReader()
+        _, serialized_example = reader.read(filename_queue)
+
+        context_features = {
+            "length": tf.FixedLenFeature([], dtype=tf.int64)
+        }
+
+        sequence_features = {
+            "frames": tf.FixedLenSequenceFeature([], dtype=tf.string),
+            "groups": tf.FixedLenSequenceFeature([], dtype=tf.int64),
+            "number_in_group": tf.FixedLenSequenceFeature([], dtype=tf.int64),
+        }
+
+        context_parsed, sequence_parsed = tf.parse_single_sequence_example(
+            serialized=serialized_example,
+            context_features=context_features,
+            sequence_features=sequence_features
+        )
+        return context_parsed, sequence_parsed
+
 
 if __name__ == '__main__':
-    # frames_class = Frames('src/1.avi')
-    # print(len(frames_class.grouped_frames_decoded))
-    dataset = Dataset('src/*.avi')
-    dataset.create_dataset()
-    print(dataset.videofiles_names_list)
+    with tf.Session() as sess:
+        dataset = Dataset(sess, 'src/*.avi')
+        # dataset.create_dataset()
+        context, sequence = dataset.parse_single_example('src/1.avi.tfrecord')
+        print(context['length'].eval())
