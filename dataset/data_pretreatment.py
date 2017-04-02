@@ -110,14 +110,13 @@ class Dataset:
             sequence_features=sequence_features
         )
 
-        return context_parsed, sequence_parsed
+        context_features = tf.contrib.learn.run_n(context_parsed, n=1, feed_dict=None)
+        sequence_features = tf.contrib.learn.run_n(sequence_parsed, n=1, feed_dict=None)
+
+        return context_features, sequence_features
 
 
 if __name__ == '__main__':
     dataset = Dataset('src/*.avi')
     # dataset.create_dataset()
     context, sequence = dataset.parse_single_example('src/1.avi.tfrecord')
-    context_features = tf.contrib.learn.run_n(context, n=1, feed_dict=None)
-    sequence_features_length = context_features[0]['length']
-    sequence_features = tf.contrib.learn.run_n(sequence, n=1, feed_dict=None)
-    print(sequence_features[0]['frame'][1])
