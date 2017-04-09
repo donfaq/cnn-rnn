@@ -1,5 +1,6 @@
 import cv2
 import tensorflow as tf
+from PIL import Image
 
 
 class Frames:
@@ -59,7 +60,7 @@ class Dataset:
     VIDEOS_PATH_PATTERN = ''
     videofiles_names_list = []
 
-    def __init__(self, input_path):
+    def __init__(self, input_path=str()):
         self.VIDEOS_PATH_PATTERN = input_path
         self.videofiles_names_list = tf.gfile.Glob(input_path)
 
@@ -117,8 +118,8 @@ class Dataset:
         return example_sequence
 
     @staticmethod
-    def parse_single_example(filename):
-        filename_queue = tf.train.string_input_producer([filename], num_epochs=1)
+    def read(filename_queue):
+
         reader = tf.TFRecordReader()
         _, serialized_example = reader.read(filename_queue)
 
@@ -140,29 +141,27 @@ class Dataset:
             sequence_features=sequence_features
         )
 
-        context_data = tf.contrib.learn.run_n(context_parsed, n=1, feed_dict=None)
-        sequence_data = tf.contrib.learn.run_n(sequence_parsed, n=1, feed_dict=None)
-
-        return context_data, sequence_data
+        return context_parsed, sequence_parsed
 
 
 if __name__ == '__main__':
-    path = ['SDHA2010Interaction/segmented_set2/*0.avi']
-    for adr in path:
-        dataset = Dataset(adr)
-        dataset.create_dataset()
-        print('DONE', adr)
+    queue = tf.train.string_input_producer(['SDHA2010Interaction/segmented_set1/0_1_4.avi.tfrecord'])
+    context, sequence = Dataset().read(queue)
+    my_img = tf.image.decode_jpeg(sequence['frame'][1], channels=3)
+    init_op = tf.global_variables_initializer()
 
-        # context, sequence = dataset.parse_single_example('src/1_2_1.avi.tfrecord')
-        # with tf.Session() as sess:
-        #     image = tf.image.decode_jpeg(sequence[0]["frame"][0], channels=3).eval()
-        #
-        #     from PIL import Image
-        #
-        #     # TODO: Don't forget about BGR
-        #     RGB_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        #     img = Image.fromarray(RGB_img, 'RGB')
-        #     img.show()
+    with tf.Session() as sess:
+        sess.run(init_op)
 
-        # print(dataset.parse_filename(dataset.videofiles_names_list[1]))
-        # print(context)
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(coord=coord)
+
+        image = my_img.eval()
+        print(image.shape)
+
+        RGB_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        img = Image.fromarray(RGB_img, 'RGB')
+        img.show()
+
+        coord.request_stop()
+        coord.join(threads)
