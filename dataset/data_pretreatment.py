@@ -160,8 +160,7 @@ if __name__ == '__main__':
         print(image.shape)
 
         RGB_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        img = Image.fromarray(RGB_img, 'RGB')
-        img.show()
-
+        Image.fromarray(RGB_img, 'RGB').save('tmp.jpg')
         coord.request_stop()
         coord.join(threads)
+
