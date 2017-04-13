@@ -1,6 +1,5 @@
 import cv2
 import tensorflow as tf
-from PIL import Image
 
 
 class Frames:
@@ -142,55 +141,3 @@ class Dataset:
                     tmp_numbers.append(number)
                 batch_counter += 1
         return examples_list
-
-    @staticmethod
-    def read(filename_queue):
-        # reader = tf.TFRecordReader()
-        # _, serialized_example = reader.read(filename_queue)
-
-        context_features = {
-            "length": tf.FixedLenFeature([], dtype=tf.int64),
-            "label": tf.FixedLenFeature([], dtype=tf.int64),
-            "extention": tf.FixedLenFeature([], dtype=tf.string)
-        }
-
-        sequence_features = {
-            "frame": tf.FixedLenSequenceFeature([], dtype=tf.string),
-            "group": tf.FixedLenSequenceFeature([], dtype=tf.int64),
-            "number_in_group": tf.FixedLenSequenceFeature([], dtype=tf.int64),
-        }
-        context_data, sequence_data = [], []
-        for serialized_example in tf.python_io.tf_record_iterator(filename_queue):
-            context_parsed, sequence_parsed = tf.parse_single_sequence_example(
-                serialized=serialized_example,
-                context_features=context_features,
-                sequence_features=sequence_features
-            )
-            context_data.append(context_parsed)
-            sequence_data.append(sequence_parsed)
-
-        return context_data, sequence_data
-
-
-if __name__ == '__main__':
-    # dataset = Dataset('SDHA2010Interaction/segmented_set2/*0.avi')
-    # dataset.create_dataset()
-
-    # only strings not FIFOQueue
-    context, sequence = Dataset().read('SDHA2010Interaction/segmented_set1/4_1_0.avi.tfrecord')
-    from pprint import pprint
-    pprint(sequence)
-    my_img = tf.image.decode_jpeg(sequence[9]['frame'][29], channels=3)
-    init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
-
-    with tf.Session() as sess:
-        sess.run(init_op)
-
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(coord=coord)
-        image = my_img.eval()
-
-        RGB_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        Image.fromarray(RGB_img, 'RGB').save('tmp.jpg')
-        coord.request_stop()
-        coord.join(threads)
