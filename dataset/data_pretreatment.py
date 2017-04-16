@@ -25,7 +25,7 @@ class Frames:
             readSucceded, frame = videofile.read()
             if not readSucceded:
                 break
-            self.frames.append(frame)
+            self.frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         self.number_of_frames = len(self.frames)
         assert self.number_of_frames is not 0
         print('done splitting')
@@ -52,7 +52,7 @@ class Frames:
         print(self.number_of_grouped_frames)
         for frame in self.grouped_frames:
             self.grouped_frames_decoded.append(
-                self.session.run(tf.image.encode_jpeg(frame, format='rgb', quality=70)))
+                self.session.run(tf.image.encode_jpeg(frame, format='rgb', quality=80)))
 
 
 class Dataset:

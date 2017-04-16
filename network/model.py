@@ -44,4 +44,4 @@ def rnn(inputs, rnn_size):
 
 
 def cnnrnn(frames):
-    pass
+    inception_block(frames)

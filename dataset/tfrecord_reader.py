@@ -2,21 +2,22 @@ import cv2
 import tensorflow as tf
 from PIL import Image
 
+context_features = {
+    "length": tf.FixedLenFeature([], dtype=tf.int64),
+    "label": tf.FixedLenFeature([], dtype=tf.int64),
+    "extention": tf.FixedLenFeature([], dtype=tf.string)
+}
 
-def read(filename_queue):
-    context_features = {
-        "length": tf.FixedLenFeature([], dtype=tf.int64),
-        "label": tf.FixedLenFeature([], dtype=tf.int64),
-        "extention": tf.FixedLenFeature([], dtype=tf.string)
-    }
+sequence_features = {
+    "frame": tf.FixedLenSequenceFeature([], dtype=tf.string),
+    "group": tf.FixedLenSequenceFeature([], dtype=tf.int64),
+    "number_in_group": tf.FixedLenSequenceFeature([], dtype=tf.int64),
+}
 
-    sequence_features = {
-        "frame": tf.FixedLenSequenceFeature([], dtype=tf.string),
-        "group": tf.FixedLenSequenceFeature([], dtype=tf.int64),
-        "number_in_group": tf.FixedLenSequenceFeature([], dtype=tf.int64),
-    }
+
+def read(filename):
     context_data, sequence_data = [], []
-    for serialized_example in tf.python_io.tf_record_iterator(filename_queue):
+    for serialized_example in tf.python_io.tf_record_iterator(filename):
         context_parsed, sequence_parsed = tf.parse_single_sequence_example(
             serialized=serialized_example,
             context_features=context_features,
@@ -43,8 +44,11 @@ def read_binary_video(filename):
     return label, BGR_videoframes
 
 
-def BGRtoRGB(image):
-    return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+def BGRtoRGB(bgr_frames):
+    RGB_frames = []
+    for frame in bgr_frames:
+        RGB_frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    return RGB_frames
 
 if __name__ == '__main__':
     with tf.Session() as session:
