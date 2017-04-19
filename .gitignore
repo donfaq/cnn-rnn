@@ -92,4 +92,4 @@ ENV/
 *.zip
 .idea/
 *.avi
-
+*.db
