@@ -40,8 +40,10 @@ def reduction_block(inputs, scope=None):
 
 
 def rnn(inputs, rnn_size):
-    cell = tf.contrib.rnn.BasicRNNCell(rnn_size)
+    rnn_cell = tf.contrib.rnn.BasicRNNCell(rnn_size)
+    outputs, state = tf.contrib.rnn.static_rnn(rnn_cell, inputs, dtype="float32")
+    return tf.squeeze(outputs, axis=3)
 
 
 def cnnrnn(frames):
-    inception_block(frames)
+    return reduction_block(inception_block(frames))
