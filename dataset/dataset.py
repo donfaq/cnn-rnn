@@ -5,9 +5,9 @@ import os
 
 from PIL import Image
 
-HEIGHT = 240
-WIDTH = 320
-BATCH_SIZE = 2
+height = 240
+width = 320
+batch_size = 2
 
 video_path = 'SDHA2010Interaction/segmented_set1/20_4_2.avi'
 zip_options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
@@ -31,7 +31,7 @@ def split_video_into_frames(path):
     images = []
     assert success is True
     while success:
-        images.append(resize_image(from_BRG_to_RGB(image), [WIDTH, HEIGHT]))
+        images.append(resize_image(from_BRG_to_RGB(image), [width, height]))
         success, image = vidcap.read()
     return np.array(images)
 
@@ -75,7 +75,7 @@ def read_tfrecord(path):
         example = tf.train.Example()
         example.ParseFromString(string_record)
         img_string = (example.features.feature['batch'].bytes_list.value[0])
-        data = np.fromstring(img_string, dtype=np.uint8).reshape((BATCH_SIZE, HEIGHT, WIDTH, -1))
+        data = np.fromstring(img_string, dtype=np.uint8).reshape((batch_size, height, width, -1))
         batches.append(data)
     return label, np.array(batches)
 
@@ -94,7 +94,7 @@ def create_dataset(pattern):
     for video in tf.gfile.Glob(pattern):
         print("Processing video: {}".format(video))
         filename, _ = os.path.splitext(video)
-        write_tfrecord(filename + ".tfr", group_images(split_video_into_frames(video), BATCH_SIZE))
+        write_tfrecord(filename + ".tfr", group_images(split_video_into_frames(video), batch_size))
 
 
 def read_dataset(pattern):
