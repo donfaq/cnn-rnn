@@ -97,7 +97,14 @@ def create_dataset(pattern):
         write_tfrecord(filename + ".tfr", group_images(split_video_into_frames(video), BATCH_SIZE))
 
 
-if __name__ == '__main__':
-    # create_dataset('SDHA2010Interaction/segmented_set2/*.avi')
-    label, batches = read_tfrecord("SDHA2010Interaction/segmented_set1/0_1_4.tfr")
-    print(label.shape, batches.shape)
+def read_dataset(pattern):
+    labels, videos = [], []
+    for video in tf.gfile.Glob(pattern):
+        print("Reading video: {}".format(video))
+        label, batches = read_tfrecord(video)
+        labels.append(label)
+        videos.append(normalize_images(batches))
+    return np.array(labels), np.array(videos)
+
+
+
