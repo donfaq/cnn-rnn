@@ -1,33 +1,23 @@
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from network.model import cnnrnn
-from dataset.tfrecord_reader import read_binary_video
+from dataset.tfrecord_reader import read
 
 train_log_dir = 'train_logs/'
 if not tf.gfile.Exists(train_log_dir):
     tf.gfile.MakeDirs(train_log_dir)
-videofiles_dir = 'dataset/SDHA2010Interaction/segmented_set1/15_13_3.avi.tfrecord'
-
-
-def load_videofile(path):
-    label, bgr_frames = read_binary_video(path)
-    with tf.Session() as sess:
-        rgb_frames = []
-        for frame in bgr_frames:
-            # tf.reverse(frame, axis=[-1]) convert from BGR into RGB format
-            rgb_frames.append(tf.to_float(tf.reverse(frame, axis=[-1])))
-        return label, rgb_frames
-
 
 if __name__ == '__main__':
     with tf.Graph().as_default():
-        label, frames = load_videofile('dataset/SDHA2010Interaction/segmented_set2/0_11_4.avi.tfrecord')
-        # TODO: predictions = model
+        filenames = tf.gfile.Glob('dataset/SDHA2010Interaction/segmented_set1/*part*.tfrecord')
+        fqueue = tf.train.string_input_producer(filenames, shuffle=False, capacity=len(filenames))
+        label, frames = read(fqueue)
+
         frames = tf.image.resize_image_with_crop_or_pad(frames, 299, 299)
-        print(frames)
-        print(label)
-        oh_labels = tf.one_hot(label, depth=3)
-        print(tf.Session().run(label))
+        # print(frames)
+        # print(label)
+        # oh_labels = tf.one_hot(label, depth=3)
+        # print(tf.Session().run(label))
         # 299 x 299 x 3
         # net = slim.conv2d(frames, 32, [3, 3], stride=2,
         #                   padding='VALID', scope='Conv2d_1a_3x3')

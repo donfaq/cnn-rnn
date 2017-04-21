@@ -1,61 +1,59 @@
-import cv2
+import base64
+
 import tensorflow as tf
-from PIL import Image
+from dataset.Frames import Frames
 
 context_features = {
-    "length": tf.FixedLenFeature([], dtype=tf.int64),
-    "label": tf.FixedLenFeature([], dtype=tf.int64),
-    "extention": tf.FixedLenFeature([], dtype=tf.string)
+    "label": tf.FixedLenFeature([], dtype=tf.int64)
 }
 
 sequence_features = {
-    "frame": tf.FixedLenSequenceFeature([], dtype=tf.string),
-    "group": tf.FixedLenSequenceFeature([], dtype=tf.int64),
-    "number_in_group": tf.FixedLenSequenceFeature([], dtype=tf.int64),
+    "frame": tf.FixedLenSequenceFeature([], dtype=tf.string)
 }
 
 
-def read(filename):
-    context_data, sequence_data = [], []
-    for serialized_example in tf.python_io.tf_record_iterator(filename):
-        context_parsed, sequence_parsed = tf.parse_single_sequence_example(
-            serialized=serialized_example,
-            context_features=context_features,
-            sequence_features=sequence_features
-        )
-        context_data.append(context_parsed)
-        sequence_data.append(sequence_parsed)
-
-    return context_data, sequence_data
-
-
-def read_binary_video(filename):
-    context, sequence = read(filename)
-    label = context[0]['label']
-    byte_videoframes = []
-    for element in sequence:
-        byte_videoframes.append(element['frame'])
-    with tf.Session() as sess:
-        byte_videoframes = sess.run(byte_videoframes)
-    BGR_videoframes = []
-    for frame_group in byte_videoframes:
-        for frame in frame_group:
-            BGR_videoframes.append(tf.image.decode_jpeg(frame, channels=3))
-    return label, BGR_videoframes
+def read(filename_queue):
+    reader = tf.TFRecordReader()
+    key, record_string = reader.read(filename_queue)
+    context_parsed, sequence_parsed = tf.parse_single_sequence_example(
+        serialized=record_string,
+        context_features=context_features,
+        sequence_features=sequence_features
+    )
+    # context_data.append(context_parsed)
+    # sequence_data.append(sequence_parsed)
+    # return context_data[0]["label"], sequence_data[0]["frame"]
+    return context_parsed, sequence_parsed
 
 
-def BGRtoRGB(bgr_frames):
-    RGB_frames = []
-    for frame in bgr_frames:
-        RGB_frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-    return RGB_frames
+def base64_decode_op(x):
+    return tf.py_func(lambda x: base64.decodestring(x), [x], [tf.string])[0]
+
+
+# def read_binary_video(filename_queue):
+#     context, sequence = read(filename_queue)
+#     label = context
+#     byte_videoframes = tf.Session().run(context)
+#     return label, byte_videoframes
+
 
 if __name__ == '__main__':
-    with tf.Session() as session:
-        vlabel, frames = session.run(
-            read_binary_video('SDHA2010Interaction/segmented_set2/15_13_3.avi.tfrecord'))
+    filenames = tf.gfile.Glob('SDHA2010Interaction/segmented_set1/1_1_2.avi_part?.tfrecord')
+    fqueue = tf.train.string_input_producer(filenames, shuffle=False, capacity=len(filenames))
+    context, sequence = read(fqueue)
 
-    count = 0
-    for img in frames:
-        Image.fromarray(BGRtoRGB(img), 'RGB').save('tmp/tmp_{}.jpg'.format(count))
-        count += 1
+    sess = tf.Session()
+    coord = tf.train.Coordinator()
+    sess.run(tf.local_variables_initializer())
+    sess.run(tf.global_variables_initializer())
+    threads = tf.train.start_queue_runners(sess=sess)
+    # count = 0
+    # for bimg in sess.run(sequence["frame"]):
+    #     with open('test{}.jpg'.format(count), 'wb') as f_output:
+    #         f_output.write(sess.run(base64_decode_op(bimg)))
+    #         print('writing done')
+    #     f_output.close()
+    #     count += 1
+
+    coord.request_stop(threads)
+    sess.close()
