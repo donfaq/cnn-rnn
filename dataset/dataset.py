@@ -7,9 +7,8 @@ from PIL import Image
 
 height = 240
 width = 320
-batch_size = 2
+batch_size = 1
 
-video_path = 'SDHA2010Interaction/segmented_set1/20_4_2.avi'
 zip_options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
 
 
@@ -107,4 +106,5 @@ def read_dataset(pattern):
     return np.array(labels), np.array(videos)
 
 
-
+if __name__ == '__main__':
+    create_dataset("SDHA2010Interaction/segmented_set?/*.avi")
