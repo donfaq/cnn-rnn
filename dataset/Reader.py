@@ -1,14 +1,15 @@
-import numpy as np
-import tensorflow as tf
 import os
 
-from dataset.dataset import batch_size, height, width
-
-zip_options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
+import numpy as np
+import tensorflow as tf
 
 
 class Reader:
-    def __init__(self, data_pattern):
+    def __init__(self, args, data_pattern):
+        self.BATCH_SIZE = args.size
+        self.HEIGHT = args.height
+        self.WIDTH = args.width
+        self.zip_options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
         self.data_pattern = data_pattern
         self.files = np.array(tf.gfile.Glob(self.data_pattern))
         self.init_dataset()
@@ -33,11 +34,11 @@ class Reader:
     def read_tfrecord(self, path):
         batches = []
         filename, label = self.parse_tfr_filename(path)
-        for string_record in tf.python_io.tf_record_iterator(path=filename, options=zip_options):
+        for string_record in tf.python_io.tf_record_iterator(path=filename, options=self.zip_options):
             example = tf.train.Example()
             example.ParseFromString(string_record)
             img_string = (example.features.feature['batch'].bytes_list.value[0])
-            data = np.fromstring(img_string, dtype=np.uint8).reshape((batch_size, height, width, -1))
+            data = np.fromstring(img_string, dtype=np.uint8).reshape((self.BATCH_SIZE, self.HEIGHT, self.WIDTH, -1))
             batches.append(data)
         return label, np.array(batches)
 
