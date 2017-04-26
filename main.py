@@ -47,8 +47,9 @@ def download_and_unzip(zipurls):
 
 
 def download_dataset_if_needed():
-    if os.listdir(data_dir) is [] or args.download:
-        print("Data folder is empty. Downloading dataset")
+    if not os.path.exists(data_dir) or args.download:
+        os.makedirs(data_dir)
+        print("Downloading dataset")
         download_and_unzip(dataset_urls)
 
 
