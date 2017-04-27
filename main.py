@@ -12,6 +12,8 @@ parser.add_argument("-estep", type=int, dest='step', help="Size of step for grou
 parser.add_argument("-height", type=int, dest='height', help="Height of frames")
 parser.add_argument("-width", type=int, dest='width', help="Width of frames")
 parser.add_argument("-lrate", type=float, dest='lrate', help="Learning rate")
+parser.add_argument("-cnn", type=str, dest='cnn', help="usual/inception cnn block")
+
 
 parser.add_argument("-u", "--update", action='store_true', help="Re-create tfrecords")
 parser.add_argument("-d", "--download", action='store_true', help="Download dataset")

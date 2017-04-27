@@ -14,6 +14,7 @@ class Network:
         self.LRATE = args.lrate
         self.RESTORE = args.restore
         self.UPDATE = args.update
+        self.cnntype = args.cnn
         self.reader = Reader.Reader(args, pattern)
         self.logs_path = 'network/logs'
         self.chkpt_file = self.logs_path + "/model.ckpt"
@@ -28,7 +29,12 @@ class Network:
                                     name="input")
             self.y = tf.placeholder(dtype=tf.int32, shape=(1,), name='labels')
             # flatten_x = tf.reshape(x, (-1, height, width, 3))
-            net = self.cnn(self.x)
+            if self.cnntype == 'inception':
+                print('Using inception cnn block')
+                net = self.inception_cnn(self.x)
+            else:
+                print('Using common cnn block')
+                net = self.cnn(self.x)
             size = np.prod(net.get_shape().as_list()[1:])
             output = self.rnn(net, size)
             logits = self.dense(output)
@@ -56,6 +62,37 @@ class Network:
                 pool3 = slim.max_pool2d(conv2, [3, 3], scope='Pool2', stride=1)
                 return slim.conv2d(pool3, 32, [3, 3], stride=2, scope='Conv3')
                 # net = slim.dropout(conv3, 0.7, is_training=is_training, scope='Pool3')
+
+    def inception_cnn(self, inputs):
+        conv1 = slim.conv2d(inputs, 32, [3, 3], stride=2, padding='VALID', scope='Conv2d_1a_3x3')
+        conv2 = slim.conv2d(conv1, 32, [3, 3], padding='VALID', scope='Conv2d_2a_3x3')
+        inc_inputs = slim.conv2d(conv2, 64, [3, 3], scope='Conv2d_2b_3x3')
+
+        with slim.arg_scope([slim.conv2d, slim.avg_pool2d, slim.max_pool2d], stride=1, padding='SAME'):
+            with tf.variable_scope('BlockInceptionA', [inc_inputs]):
+                with tf.variable_scope('IBranch_0'):
+                    ibranch_0 = slim.conv2d(inc_inputs, 96, [1, 1], scope='IConv2d_0a_1x1')
+                with tf.variable_scope('IBranch_1'):
+                    ibranch_1_conv1 = slim.conv2d(inc_inputs, 64, [1, 1], scope='IConv2d_0a_1x1')
+                    ibranch_1 = slim.conv2d(ibranch_1_conv1, 96, [3, 3], scope='IConv2d_0b_3x3')
+                with tf.variable_scope('IBranch_2'):
+                    ibranch_2_conv1 = slim.conv2d(inc_inputs, 64, [1, 1], scope='IConv2d_0a_1x1')
+                    ibranch_2_conv2 = slim.conv2d(ibranch_2_conv1, 96, [3, 3], scope='IConv2d_0b_3x3')
+                    ibranch_2 = slim.conv2d(ibranch_2_conv2, 96, [3, 3], scope='IConv2d_0c_3x3')
+                with tf.variable_scope('IBranch_3'):
+                    ibranch_3_pool = slim.avg_pool2d(inc_inputs, [3, 3], scope='IAvgPool_0a_3x3')
+                    ibranch_3 = slim.conv2d(ibranch_3_pool, 96, [1, 1], scope='IConv2d_0b_1x1')
+                inception = tf.concat(axis=3, values=[ibranch_0, ibranch_1, ibranch_2, ibranch_3])
+        with tf.variable_scope('BlockReductionA', [inception]):
+            with tf.variable_scope('RBranch_0'):
+                rbranch_0 = slim.conv2d(inception, 384, [3, 3], stride=2, padding='VALID', scope='RConv2d_1a_3x3')
+            with tf.variable_scope('RBranch_1'):
+                rbranch_1_conv1 = slim.conv2d(inception, 192, [1, 1], scope='RConv2d_0a_1x1')
+                rbranch_1_conv2 = slim.conv2d(rbranch_1_conv1, 224, [3, 3], scope='RConv2d_0b_3x3')
+                rbranch_1 = slim.conv2d(rbranch_1_conv2, 256, [3, 3], stride=2, padding='VALID', scope='RConv2d_1a_3x3')
+            with tf.variable_scope('RBranch_2'):
+                rbranch_2 = slim.max_pool2d(inception, [3, 3], stride=2, padding='VALID', scope='RMaxPool_1a_3x3')
+            return tf.concat(axis=3, values=[rbranch_0, rbranch_1, rbranch_2])
 
     def rnn(self, net, size):
         with tf.variable_scope('GRU_RNN_cell'):

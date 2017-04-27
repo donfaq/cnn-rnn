@@ -21,3 +21,4 @@ python main.py -esize 50 -estep 20 -height 240 -width 320 -lrate 1e-4 -d -u
 `-u`, `--update` Re-create tfrecords<br>
 `-d`, `--download`  Download dataset<br>
 `-r`, `--restore`,  Re-store checkpoint<br>
+`-cnn inception`, To use new cnn block
