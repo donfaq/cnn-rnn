@@ -19,6 +19,7 @@ class Network:
         self.logs_path = 'network/logs'
         self.chkpt_file = self.logs_path + "/model.ckpt"
         self.classes_num = 6
+        self.is_training = True
         self.model()
         self.writer = tf.summary.FileWriter(self.logs_path, graph=self.graph)
 
@@ -41,20 +42,23 @@ class Network:
             self.calc_accuracy(logits, self.y)
 
             with tf.name_scope('Cost'):
-                cross_entropy = slim.losses.sparse_softmax_cross_entropy(logits=logits, labels=self.y, scope='cross_entropy')
-                tf.summary.scalar("cross_entropy", cross_entropy)
+                self.cross_entropy = slim.losses.sparse_softmax_cross_entropy(logits=logits, labels=self.y,
+                                                                              scope='cross_entropy')
+                tf.summary.scalar("cross_entropy", self.cross_entropy)
 
             with tf.name_scope('Optimizer'):
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
-                self.train_step = tf.train.GradientDescentOptimizer(self.LRATE).minimize(loss=cross_entropy,
-                                                                                         global_step=self.global_step)
+                self.optimizer = tf.train.AdamOptimizer(self.LRATE)
+                self.train_step = slim.learning.create_train_op(self.cross_entropy, self.optimizer, self.global_step)
             self.summary_op = tf.summary.merge_all()
             self.saver = tf.train.Saver()
 
     def cnn(self, input):
-        with slim.arg_scope([slim.conv2d], stride=1):
+        with slim.arg_scope([slim.conv2d], stride=1, weights_initializer=tf.contrib.layers.xavier_initializer_conv2d()):
             with tf.variable_scope('Convolution', [input]):
-                conv1 = slim.conv2d(input, 32, [1, 1], stride=2, scope='Conv1')
+                conv1 = slim.conv2d(input, 32, [1, 1], stride=2, scope='Conv1',
+                                    normalizer_fn=slim.batch_norm,
+                                    normalizer_params={'is_training': self.is_training})
                 # dropout = slim.dropout(conv1, 0.8, is_training=is_training)
                 pool2 = slim.max_pool2d(conv1, [3, 3], scope='Pool1', stride=1)
                 conv2 = slim.conv2d(pool2, 32, [3, 3], scope='Conv2')
@@ -102,15 +106,9 @@ class Network:
             rnn_outputs, _ = tf.nn.dynamic_rnn(cell, rnn_inputs, initial_state=init_state)
             return tf.reduce_mean(rnn_outputs, axis=1)
 
-
     def dense(self, output):
         with tf.name_scope('Dense'):
-            return slim.fully_connected(output,
-                                        self.classes_num,
-                                        weights_initializer=tf.truncated_normal_initializer(mean=0.0,
-                                                                                            stddev=0.05,
-                                                                                            dtype=tf.float32),
-                                        scope="Fully-connected")
+            return slim.fully_connected(output, self.classes_num, scope="Fully-connected")
 
     def calc_accuracy(self, logits, y):
         with tf.name_scope('Accuracy'):
@@ -130,10 +128,10 @@ class Network:
             while True:
                 label, example = self.reader.get_random_example()
                 feed_dict = {self.x: example, self.y: label}
-                _, summary, acc, gs = sess.run([self.train_step, self.summary_op, self.accuracy, self.global_step],
-                                               feed_dict=feed_dict)
-                self.writer.add_summary(summary, gs)
-                print("Global step {} - Accuracy: {}".format(gs, acc))
-                if gs % 100 == 0:
+                _, summary, acc, g_step = sess.run([self.train_step, self.summary_op, self.accuracy, self.global_step],
+                                                   feed_dict=feed_dict)
+                self.writer.add_summary(summary, g_step)
+                print("Global step {} - Accuracy: {}".format(g_step, acc))
+                if g_step % 100 == 0:
                     save_path = self.saver.save(sess, self.chkpt_file)
                     print("Model saved in file: %s" % save_path)

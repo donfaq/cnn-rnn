@@ -2,6 +2,7 @@ import argparse
 import os
 from urllib.request import urlretrieve
 from zipfile import ZipFile
+import shutil
 
 from dataset.dataset import Dataset
 from network.train import Network
@@ -25,6 +26,7 @@ dataset_urls = [
 
 tmp_zip_adr = os.path.join(os.getcwd(), 'dataset/data/tmp.zip')
 data_dir = os.path.join('dataset/data/')
+logs_path = 'network/logs'
 
 
 def run():
@@ -49,8 +51,9 @@ def download_and_unzip(zipurls):
 
 
 def download_dataset_if_needed():
-    if os.listdir(data_dir) is [] or args.download:
-        print("Data folder is empty. Downloading dataset")
+    if not os.path.exists(data_dir) or args.download:
+        os.makedirs(data_dir)
+        print("Downloading dataset")
         download_and_unzip(dataset_urls)
 
 
