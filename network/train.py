@@ -69,7 +69,7 @@ class Network:
 
     def inception_cnn(self, inputs):
         conv1 = slim.conv2d(inputs, 32, [3, 3], stride=2, padding='VALID', scope='Conv2d_1a_3x3')
-        conv2 = slim.conv2d(conv1, 32, [3, 3], padding='VALID', scope='Conv2d_2a_3x3')
+        conv2 = slim.conv2d(conv1, 32, [3, 3], stride=2, padding='VALID', scope='Conv2d_2a_3x3')
         inc_inputs = slim.conv2d(conv2, 64, [3, 3], scope='Conv2d_2b_3x3')
 
         with slim.arg_scope([slim.conv2d, slim.avg_pool2d, slim.max_pool2d], stride=1, padding='SAME'):
@@ -113,8 +113,7 @@ class Network:
     def calc_accuracy(self, logits, y):
         with tf.name_scope('Accuracy'):
             prediction = tf.cast(tf.arg_max(logits, dimension=1), tf.int32)
-            equality = tf.equal(prediction, y)
-            self.accuracy = tf.reduce_mean(tf.cast(equality, tf.float32))
+            self.accuracy = tf.contrib.metrics.accuracy(labels=y, predictions=prediction)
             tf.summary.scalar("accuracy", self.accuracy)
 
     def begin_training(self):
@@ -123,15 +122,31 @@ class Network:
                 self.saver.restore(sess, self.chkpt_file)
                 print("Model restored.")
             else:
+                sess.run(tf.local_variables_initializer())
                 sess.run(tf.global_variables_initializer())
 
+            right_answers = []
+            total = []
             while True:
                 label, example = self.reader.get_random_example()
                 feed_dict = {self.x: example, self.y: label}
-                _, summary, acc, g_step = sess.run([self.train_step, self.summary_op, self.accuracy, self.global_step],
-                                                   feed_dict=feed_dict)
+
+                _, summary, acc, g_step = sess.run(
+                    [self.train_step,
+                     self.summary_op,
+                     self.accuracy,
+                     self.global_step], feed_dict=feed_dict)
                 self.writer.add_summary(summary, g_step)
-                print("Global step {} - Accuracy: {}".format(g_step, acc))
+
+                print("Global step {}: Current step accuracy = {}".format(g_step, acc))
+                if acc == 1:
+                    right_answers.append(1)
+                if g_step % 10 == 0:
+                    acc10 = len(right_answers) / 10
+                    right_answers = []
+                    print("10 steps accuracy = {}".format(acc10))
+                    total.append(acc10)
                 if g_step % 100 == 0:
                     save_path = self.saver.save(sess, self.chkpt_file)
                     print("Model saved in file: %s" % save_path)
+                    print("TOTAL ACCURACY AFTER 100 STEPS: {}".format(sum(total)/100))
