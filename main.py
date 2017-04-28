@@ -19,6 +19,7 @@ parser.add_argument("-cnn", type=str, dest='cnn', help="usual/inception cnn bloc
 parser.add_argument("-u", "--update", action='store_true', help="Re-create tfrecords")
 parser.add_argument("-d", "--download", action='store_true', help="Download dataset")
 parser.add_argument("-r", "--restore", action='store_true', help="Re-store checkpoint")
+parser.add_argument("-is_training", action='store_true', help="Is test?")
 
 dataset_urls = [
     "http://cvrc.ece.utexas.edu/SDHA2010/videos/competition_1/ut-interaction_segmented_set1.zip",
@@ -34,9 +35,12 @@ def run():
     if args.update:
         print("Starting processing binary dataset")
         Dataset(args).create_dataset(data_dir + "segmented_set?/*.avi")
-    print("Begin training")
-    Network(args).begin_training()
-
+    if args.is_training is True:
+        print("Begin training")
+        Network(args).begin_training()
+    else:
+        print("Begin test")
+        Network(args).begin_test()
 
 def download_and_unzip(zipurls):
     for url in zipurls:
