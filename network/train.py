@@ -153,6 +153,8 @@ class Network:
                 sess.run(tf.global_variables_initializer())
 
             print("Number of trainable variables:", self.count_number_trainable_params())
+            for el in slim.get_trainable_variables():
+                print(el, el.shape)
 
             correct_answers = []
             ten_step_acc = []
