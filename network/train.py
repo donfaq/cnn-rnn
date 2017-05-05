@@ -48,7 +48,6 @@ class Network:
                 self.cross_entropy = slim.losses.sparse_softmax_cross_entropy(logits=logits, labels=self.y,
                                                                               scope='cross_entropy')
                 tf.summary.scalar("cross_entropy", self.cross_entropy)
-
             with tf.name_scope('Optimizer'):
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
                 self.optimizer = tf.train.AdamOptimizer(self.LRATE)
@@ -174,7 +173,7 @@ class Network:
                         correct_answers.append(1)
                     print('[train] Accuracy on step {}: {}'.format(global_step, accuracy))
 
-                    self.train_writer.add_run_metadata(run_metadata, 'step%d', global_step)
+                    self.train_writer.add_run_metadata(run_metadata, 'step{}'.format(global_step), global_step)
                     self.train_writer.add_summary(summary, global_step)
                     print('[train] Adding run metadata for', global_step)
 
@@ -223,7 +222,7 @@ class Network:
                     summary, global_step, accuracy = sess.run(
                         [self.summary_op, self.global_step, self.accuracy],
                         feed_dict=feed_dict, options=run_options, run_metadata=run_metadata)
-                    self.test_writer.add_run_metadata(run_metadata, 'step%d', global_step)
+                    self.test_writer.add_run_metadata(run_metadata, 'step{}'.format(global_step), global_step)
                     self.test_writer.add_summary(summary, global_step)
                     print('[test] Adding run metadata for', global_step)
 

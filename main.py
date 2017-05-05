@@ -2,8 +2,6 @@ import argparse
 import os
 from urllib.request import urlretrieve
 from zipfile import ZipFile
-import shutil
-
 from dataset.dataset import Dataset
 from network.train import Network
 
