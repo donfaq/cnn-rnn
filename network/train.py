@@ -20,17 +20,17 @@ class Network:
         self.RESTORE = args.restore
         self.UPDATE = args.update
         self.cnntype = args.cnn
-        self.logs_path = 'network/logs'
-        self.chkpt_file = self.logs_path + "/model.ckpt"
+        self.train_logs_path = 'network/train_logs'
+        self.test_logs_path = 'network/test_logs'
+        self.chkpt_file = self.train_logs_path + "/model.ckpt"
         self.classes_num = 6
         self.model()
-        self.writer = tf.summary.FileWriter(self.logs_path, graph=self.graph)
+        self.train_writer = tf.summary.FileWriter(self.train_logs_path, graph=self.graph)
+        self.test_writer = tf.summary.FileWriter(self.test_logs_path, graph=self.graph)
 
     def model(self):
         with tf.Graph().as_default() as self.graph:
-            self.x = tf.placeholder(dtype=tf.float32,
-                                    shape=(self.BATCH_SIZE, self.HEIGHT, self.WIDTH, 3),
-                                    name="input")
+            self.x = tf.placeholder(dtype=tf.float32, shape=(self.BATCH_SIZE, self.HEIGHT, self.WIDTH, 3), name="input")
             self.y = tf.placeholder(dtype=tf.int32, shape=(1,), name='labels')
             # flatten_x = tf.reshape(x, (-1, height, width, 3))
             if self.cnntype == 'inception':
@@ -57,25 +57,24 @@ class Network:
             self.saver = tf.train.Saver()
 
     def cnn(self, input):
-        with slim.arg_scope([slim.conv2d], stride=1, weights_initializer=tf.contrib.layers.xavier_initializer_conv2d()):
+        with slim.arg_scope([slim.conv2d], stride=1, weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
+                            trainable=self.IS_TRAINING):
             with tf.variable_scope('Convolution', [input]):
                 conv1 = slim.conv2d(input, 32, [1, 1], stride=2, scope='Conv1',
                                     normalizer_fn=slim.batch_norm,
                                     normalizer_params={'is_training': self.IS_TRAINING})
-                # dropout = slim.dropout(conv1, 0.8, is_training=is_training)
                 pool2 = slim.max_pool2d(conv1, [3, 3], scope='Pool1', stride=1)
                 conv2 = slim.conv2d(pool2, 32, [3, 3], scope='Conv2')
-                # dropout = slim.dropout(conv2, 0.8, is_training=is_training)
                 pool3 = slim.max_pool2d(conv2, [3, 3], scope='Pool2', stride=1)
                 return slim.conv2d(pool3, 32, [3, 3], stride=2, scope='Conv3')
-                # net = slim.dropout(conv3, 0.7, is_training=is_training, scope='Pool3')
 
     def inception_cnn(self, inputs):
         conv1 = slim.conv2d(inputs, 32, [3, 3], stride=2, padding='VALID', scope='Conv2d_1a_3x3')
         conv2 = slim.conv2d(conv1, 32, [3, 3], stride=2, padding='VALID', scope='Conv2d_2a_3x3')
         inc_inputs = slim.conv2d(conv2, 64, [3, 3], scope='Conv2d_2b_3x3')
 
-        with slim.arg_scope([slim.conv2d, slim.avg_pool2d, slim.max_pool2d], stride=1, padding='SAME'):
+        with slim.arg_scope([slim.conv2d, slim.avg_pool2d, slim.max_pool2d], trainable=self.IS_TRAINING, stride=1,
+                            padding='SAME'):
             with tf.variable_scope('BlockInceptionA', [inc_inputs]):
                 with tf.variable_scope('IBranch_0'):
                     ibranch_0 = slim.conv2d(inc_inputs, 96, [1, 1], scope='IConv2d_0a_1x1')
@@ -90,15 +89,16 @@ class Network:
                     ibranch_3_pool = slim.avg_pool2d(inc_inputs, [3, 3], scope='IAvgPool_0a_3x3')
                     ibranch_3 = slim.conv2d(ibranch_3_pool, 96, [1, 1], scope='IConv2d_0b_1x1')
                 inception = tf.concat(axis=3, values=[ibranch_0, ibranch_1, ibranch_2, ibranch_3])
-        with tf.variable_scope('BlockReductionA', [inception]):
-            with tf.variable_scope('RBranch_0'):
-                rbranch_0 = slim.conv2d(inception, 384, [3, 3], stride=2, padding='VALID', scope='RConv2d_1a_3x3')
-            with tf.variable_scope('RBranch_1'):
-                rbranch_1_conv1 = slim.conv2d(inception, 192, [1, 1], scope='RConv2d_0a_1x1')
-                rbranch_1_conv2 = slim.conv2d(rbranch_1_conv1, 224, [3, 3], scope='RConv2d_0b_3x3')
-                rbranch_1 = slim.conv2d(rbranch_1_conv2, 256, [3, 3], stride=2, padding='VALID', scope='RConv2d_1a_3x3')
-            with tf.variable_scope('RBranch_2'):
-                rbranch_2 = slim.max_pool2d(inception, [3, 3], stride=2, padding='VALID', scope='RMaxPool_1a_3x3')
+            with tf.variable_scope('BlockReductionA', [inception]):
+                with tf.variable_scope('RBranch_0'):
+                    rbranch_0 = slim.conv2d(inception, 384, [3, 3], stride=2, padding='VALID', scope='RConv2d_1a_3x3')
+                with tf.variable_scope('RBranch_1'):
+                    rbranch_1_conv1 = slim.conv2d(inception, 192, [1, 1], scope='RConv2d_0a_1x1')
+                    rbranch_1_conv2 = slim.conv2d(rbranch_1_conv1, 224, [3, 3], scope='RConv2d_0b_3x3')
+                    rbranch_1 = slim.conv2d(rbranch_1_conv2, 256, [3, 3], stride=2, padding='VALID',
+                                            scope='RConv2d_1a_3x3')
+                with tf.variable_scope('RBranch_2'):
+                    rbranch_2 = slim.max_pool2d(inception, [3, 3], stride=2, padding='VALID', scope='RMaxPool_1a_3x3')
             return tf.concat(axis=3, values=[rbranch_0, rbranch_1, rbranch_2])
 
     def rnn(self, net, size):
@@ -119,7 +119,31 @@ class Network:
             self.accuracy = tf.contrib.metrics.accuracy(labels=y, predictions=prediction)
             tf.summary.scalar("accuracy", self.accuracy)
 
+    @staticmethod
+    def get_nb_params_shape(shape):
+        """
+        Computes the total number of params for a given shap.
+        Works for any number of shapes etc [D,F] or [W,H,C] computes D*F and W*H*C.
+        """
+        nb_params = 1
+        for dim in shape:
+            nb_params = nb_params * int(dim)
+        return nb_params
+
+    def count_number_trainable_params(self):
+        """
+        Counts the number of trainable variables.
+        """
+        tot_nb_params = 0
+        for trainable_variable in slim.get_trainable_variables():
+            shape = trainable_variable.get_shape()  # e.g [D,F] or [W,H,C]
+            current_nb_params = self.get_nb_params_shape(shape)
+            tot_nb_params = tot_nb_params + current_nb_params
+        return tot_nb_params
+
     def begin_training(self):
+        self.IS_TRAINING = True
+
         with tf.Session(graph=self.graph) as sess:
             if self.RESTORE:
                 self.saver.restore(sess, self.chkpt_file)
@@ -128,57 +152,97 @@ class Network:
                 sess.run(tf.local_variables_initializer())
                 sess.run(tf.global_variables_initializer())
 
-            right_answers = []
-            total = []
-            epoch_count = 0
+            print("Number of trainable variables:", self.count_number_trainable_params())
+
+            correct_answers = []
+            ten_step_acc = []
+            i = 1
             while True:
                 label, example = self.train_reader.get_random_example()
                 feed_dict = {self.x: example, self.y: label}
 
-                _, summary, acc, g_step = sess.run(
-                    [self.train_step,
-                     self.summary_op,
-                     self.accuracy,
-                     self.global_step], feed_dict=feed_dict)
-                self.writer.add_summary(summary, g_step)
+                if i % 10 == 0:
+                    run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                    run_metadata = tf.RunMetadata()
+                    _, summary, global_step, accuracy = sess.run(
+                        [self.train_step, self.summary_op, self.global_step, self.accuracy],
+                        feed_dict=feed_dict, options=run_options, run_metadata=run_metadata)
 
-                print("[train] Global step {}: Current step accuracy = {}".format(g_step, acc))
-                if acc == 1:
-                    right_answers.append(1)
-                if g_step % 10 == 0:
-                    acc10 = len(right_answers) / 10
-                    right_answers = []
-                    print("10 steps accuracy = {}".format(acc10))
-                    total.append(acc10)
-                if g_step % 100 == 0:
+                    if accuracy == 1:
+                        correct_answers.append(1)
+                    print('[train] Accuracy on step {}: {}'.format(global_step, accuracy))
+
+                    self.train_writer.add_run_metadata(run_metadata, 'step%d', global_step)
+                    self.train_writer.add_summary(summary, global_step)
+                    print('[train] Adding run metadata for', global_step)
+
+                    ten_step_acc.append(sum(correct_answers) / 10)
+                    print('[train] Accuracy for 10 steps:', sum(correct_answers) / 10)
+
                     save_path = self.saver.save(sess, self.chkpt_file)
-                    print("Model saved in file: %s" % save_path)
-                    epoch_count += 1
-                    print("[EPOCH {}] TOTAL ACCURACY AFTER 100 STEPS: {}".format(epoch_count, sum(total) / 100))
-                    self.begin_test()
+                    print("[train] Model saved in file: %s" % save_path)
+
+                    correct_answers = []
+
+                    if i % 100 == 0:
+                        print('[train] Epoch accuracy:', sum(ten_step_acc) / len(ten_step_acc))
+                        ten_step_acc = []
+                        self.begin_test()
+                        self.IS_TRAINING = True
+
+                else:
+                    _, summary, global_step, accuracy = sess.run(
+                        [self.train_step, self.summary_op, self.global_step, self.accuracy],
+                        feed_dict=feed_dict)
+                    self.train_writer.add_summary(summary, global_step)
+                    if accuracy == 1:
+                        correct_answers.append(1)
+                    print('[train] Accuracy on step {}: {}'.format(global_step, accuracy))
+                i += 1
 
     def begin_test(self):
+        self.IS_TRAINING = False
+
         with tf.Session(graph=self.graph) as sess:
             self.saver.restore(sess, self.chkpt_file)
             print("Model restored")
-            self.IS_TRAINING = False
+            print("Number of trainable variables:", self.count_number_trainable_params())
 
-            right_answers = []
-            total = []
-
-            for i in range(100):  # 100 steps == 1 epoch
+            correct_answers = []
+            ten_step_acc = []
+            sc = 1
+            while sc <= 100:
                 label, example = self.test_reader.get_random_example()
                 feed_dict = {self.x: example, self.y: label}
-                summary, acc, g_step = sess.run(
-                    [self.summary_op,
-                     self.accuracy,
-                     self.global_step], feed_dict=feed_dict)
-                if acc == 1:
-                    right_answers.append(1)
-                if g_step % 10 == 0:
-                    acc10 = len(right_answers) / 10
-                    right_answers = []
-                    print("[test] 10 test steps accuracy = {}".format(acc10))
-                    total.append(acc10)
-                if g_step % 100 == 0:
-                    print("TOTAL TEST ACCURACY: {}".format(sum(total) / 100))
+
+                if sc % 10 == 0:
+                    run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                    run_metadata = tf.RunMetadata()
+                    summary, global_step, accuracy = sess.run(
+                        [self.summary_op, self.global_step, self.accuracy],
+                        feed_dict=feed_dict, options=run_options, run_metadata=run_metadata)
+                    self.test_writer.add_run_metadata(run_metadata, 'step%d', global_step)
+                    self.test_writer.add_summary(summary, global_step)
+                    print('[test] Adding run metadata for', global_step)
+
+                    if accuracy == 1:
+                        correct_answers.append(1)
+                    print('[test] Accuracy on step {}: {}'.format(global_step, accuracy))
+
+                    ten_step_acc.append(sum(correct_answers) / 10)
+                    print('[test] Accuracy for 10 steps:', sum(correct_answers) / 10)
+
+                    correct_answers = []
+                    if sc % 100 == 0:
+                        print('[test] Test accuracy:', sum(ten_step_acc) / len(ten_step_acc))
+                        ten_step_acc = []
+
+                else:
+                    summary, global_step, accuracy = sess.run(
+                        [self.summary_op, self.global_step, self.accuracy],
+                        feed_dict=feed_dict)
+                    self.test_writer.add_summary(summary, global_step)
+                    if accuracy == 1:
+                        correct_answers.append(1)
+                    print('[test] Accuracy on step {}: {}'.format(global_step, accuracy))
+                sc += 1
