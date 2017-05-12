@@ -34,8 +34,11 @@ class Network:
             self.y = tf.placeholder(dtype=tf.int32, shape=(1,), name='labels')
             # flatten_x = tf.reshape(x, (-1, height, width, 3))
             if self.cnntype == 'inception':
-                print('Using inception cnn block')
+                print('Using Inception model')
                 net = self.inception_cnn(self.x)
+            elif self.cnntype == 'vgg16':
+                print('Using VGG16 model')
+                net = self.vgg16(self.x)
             else:
                 print('Using common cnn block')
                 net = self.cnn(self.x)
@@ -100,10 +103,33 @@ class Network:
                     rbranch_2 = slim.max_pool2d(inception, [3, 3], stride=2, padding='VALID', scope='RMaxPool_1a_3x3')
             return tf.concat(axis=3, values=[rbranch_0, rbranch_1, rbranch_2])
 
+    def vgg16(self, inputs):
+        with slim.arg_scope([slim.conv2d, slim.fully_connected],
+                            activation_fn=tf.nn.relu,
+                            trainable=self.IS_TRAINING,
+                            weights_initializer=tf.truncated_normal_initializer(0.0, 0.01),
+                            weights_regularizer=slim.l2_regularizer(0.0005)):
+            net = slim.repeat(inputs, 2, slim.conv2d, 64, [3, 3], scope='conv1')
+            net = slim.max_pool2d(net, [2, 2], scope='pool1')
+            net = slim.repeat(net, 2, slim.conv2d, 128, [3, 3], scope='conv2')
+            net = slim.max_pool2d(net, [2, 2], scope='pool2')
+            net = slim.repeat(net, 3, slim.conv2d, 256, [3, 3], scope='conv3')
+            net = slim.max_pool2d(net, [2, 2], scope='pool3')
+            net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
+            net = slim.max_pool2d(net, [2, 2], scope='pool4')
+            net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv5')
+            net = slim.max_pool2d(net, [2, 2], scope='pool5')
+            net = slim.fully_connected(net, 4096, scope='fc6')
+            net = slim.dropout(net, 0.5, scope='dropout6')
+            net = slim.fully_connected(net, 4096, scope='fc7')
+            net = slim.dropout(net, 0.5, scope='dropout7')
+            net = slim.fully_connected(net, 1000, activation_fn=None, scope='fc8')
+        return net
+
     def rnn(self, net, size):
         with tf.variable_scope('GRU_RNN_cell'):
             rnn_inputs = tf.reshape(net, (-1, self.BATCH_SIZE, size))
-            cell = tf.contrib.rnn.GRUCell(100)
+            cell = tf.contrib.rnn.LSTMCell(100)
             init_state = cell.zero_state(1, dtype=tf.float32)
             rnn_outputs, _ = tf.nn.dynamic_rnn(cell, rnn_inputs, initial_state=init_state)
             return tf.reduce_mean(rnn_outputs, axis=1)
