@@ -54,7 +54,8 @@ class Network:
             with tf.name_scope('Optimizer'):
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
                 self.optimizer = tf.train.AdamOptimizer(self.LRATE)
-                self.train_step = slim.learning.create_train_op(self.cross_entropy, self.optimizer, self.global_step)
+                self.train_step = slim.learning.create_train_op(self.cross_entropy, self.optimizer, self.global_step,
+                                                                aggregation_method=tf.AggregationMethod.EXPERIMENTAL_TREE)
             self.summary_op = tf.summary.merge_all()
             self.saver = tf.train.Saver()
 
