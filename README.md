@@ -8,9 +8,9 @@ Tensorflow based implementation of convolution-reccurent network for classificat
 * Tensorflow > 1.0
 * Python OpenCV > 3.0
 
-### Run training
+### Evaluation
 Example:
-```
+```bash
 python main.py --lrate 0.001 --update
 ```
 Optional parameters:<br>
@@ -20,7 +20,7 @@ Optional parameters:<br>
 `height`, 240, 'Height of frames'<br>
 `width`, 320, 'Width of frames'<br>
 `lrate`, 1e-4, 'Learning rate'<br>
-`conv`, 'standard', 'Type of CNN block'<br>
+`conv`, 'standard', 'Type of CNN block (inception/vgg16)'<br>
 `rnn`, 'GRU', 'Type of RNN block (LSTM/GRU)'<br>
 `update`, False, 'Generate TFRecords'<br>
 `download`, False, 'Download dataset'<br>
