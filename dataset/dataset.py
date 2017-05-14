@@ -3,15 +3,17 @@ import cv2
 import numpy as np
 import tensorflow as tf
 from PIL import Image
+import config
 
+FLAGS = tf.app.flags.FLAGS
 
 class Dataset:
-    def __init__(self, args):
+    def __init__(self):
         self.zip_options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
-        self.BATCH_SIZE = args.size
-        self.STEP = args.step
-        self.HEIGHT = args.height
-        self.WIDTH = args.width
+        # self.BATCH_SIZE = args.size
+        # self.STEP = args.step
+        # self.HEIGHT = args.height
+        # self.WIDTH = args.width
 
     @staticmethod
     def from_BRG_to_RGB(img):
@@ -27,7 +29,7 @@ class Dataset:
         images = []
         assert success is True
         while success:
-            images.append(self.resize_image(self.from_BRG_to_RGB(image), [self.WIDTH, self.HEIGHT]))
+            images.append(self.resize_image(self.from_BRG_to_RGB(image), [FLAGS.width, FLAGS.height]))
             success, image = vidcap.read()
         return np.array(images)
 
@@ -81,6 +83,8 @@ class Dataset:
         for video in tf.gfile.Glob(pattern):
             print("Processing video: {}".format(video))
             filename, _ = os.path.splitext(video)
-            self.write_tfrecord(filename + ".tfr",
-                                self.group(self.split_video_into_frames(video), self.BATCH_SIZE, self.STEP))
+            self.write_tfrecord(
+                filename + ".tfr",
+                self.group(self.split_video_into_frames(video), FLAGS.esize, FLAGS.estep)
+            )
 
