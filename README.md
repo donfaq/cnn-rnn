@@ -10,19 +10,19 @@ Tensorflow based implementation of convolution-reccurent network for classificat
 
 ### Evaluation
 Example:
-```bash
+```
 python main.py --lrate 0.001 --update
 ```
 Optional parameters:<br>
-`epoch`, 1, 'Number of epoch' <br>
-`esize`, 50, 'Size of examples' <br>
-`estep`, 20, 'Length of step for grouping frames into examples'<br>
-`height`, 240, 'Height of frames'<br>
-`width`, 320, 'Width of frames'<br>
-`lrate`, 1e-4, 'Learning rate'<br>
-`conv`, 'standard', 'Type of CNN block (inception/vgg16)'<br>
-`rnn`, 'GRU', 'Type of RNN block (LSTM/GRU)'<br>
-`update`, False, 'Generate TFRecords'<br>
-`download`, False, 'Download dataset'<br>
-`restore`, False, 'Restore from previous checkpoint'<br>
-`test`, False, 'Test evaluation'<br>
+`epoch` — 1 — 'Number of epoch' <br>
+`esize` — 50 — 'Size of examples' <br>
+`estep` — 20 — 'Length of step for grouping frames into examples'<br>
+`height` — 240 — 'Height of frames'<br>
+`width` — 320 — 'Width of frames'<br>
+`lrate` — 1e-4 — 'Learning rate'<br>
+`conv` — 'standard' — 'Type of CNN block (inception/vgg16)'<br>
+`rnn` — 'GRU' — 'Type of RNN block (LSTM/GRU)'<br>
+`update` — False — 'Generate TFRecords'<br>
+`download` — False — 'Download dataset'<br>
+`restore` — False — 'Restore from previous checkpoint'<br>
+`test` — False — 'Test evaluation'<br>
