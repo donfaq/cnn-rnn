@@ -16,7 +16,9 @@ class Network:
         with self.graph.as_default():
             self.x = tf.placeholder(dtype=tf.float32, shape=(FLAGS.esize, FLAGS.height, FLAGS.width, 3), name="inputs")
             self.y = tf.placeholder(dtype=tf.int32, shape=(1,), name='label')
-            logits = Model(self.x, self.is_training).logits
+            self.keep_prob = tf.placeholder(dtype=tf.float32, name='keep_prob')
+
+            logits = Model(self.x, self.is_training, self.keep_prob).logits
             self._calc_accuracy(logits, self.y)
 
             with tf.name_scope('Cost'):
@@ -25,9 +27,9 @@ class Network:
                 tf.summary.scalar("cross_entropy", cross_entropy)
             with tf.name_scope('Optimizer'):
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
+                optimizer = tf.train.GradientDescentOptimizer(FLAGS.lrate)
                 # optimizer = tf.train.AdamOptimizer(FLAGS.lrate)
                 # optimizer = tf.train.MomentumOptimizer(FLAGS.lrate, 0.9, use_nesterov=True)
-                optimizer = tf.train.GradientDescentOptimizer(FLAGS.lrate)
                 # optimizer = tf.train.RMSPropOptimizer(FLAGS.lrate)
                 self.train_step = slim.learning.create_train_op(cross_entropy, optimizer, self.global_step,
                                                                 aggregation_method=tf.AggregationMethod.EXPERIMENTAL_TREE)

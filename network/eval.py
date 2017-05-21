@@ -19,6 +19,7 @@ class Learning:
 
         self.ten_accuracy = []
         self.epoch_accuracy = []
+
         if FLAGS.test is True:
             self.is_training = False
             self._evaluate_test()
@@ -26,22 +27,70 @@ class Learning:
             self.is_training = True
             self._evaluate_train()
 
+    def _train_step(self, sess, run_options=None, run_metadata=None):
+        if run_options is not None:
+            _, summary, global_step, accuracy = sess.run(
+                [self.net.train_step, self.net.summary_op, self.net.global_step, self.net.accuracy],
+                feed_dict=self.next_example(), options=run_options, run_metadata=run_metadata)
+            self.train_writer.add_run_metadata(run_metadata, 'step{}'.format(global_step), global_step)
+            print('Adding run metadata for', global_step)
+        else:
+            _, summary, global_step, accuracy = sess.run(
+                [self.net.train_step, self.net.summary_op, self.net.global_step, self.net.accuracy],
+                feed_dict=self.next_example())
+        self.train_writer.add_summary(summary, global_step)
+        return global_step, accuracy
+
+    def _test_step(self, sess):
+        # TODO: New reader for test on all videos
+        summary, global_step, accuracy = sess.run(
+            [self.net.summary_op, self.net.global_step, self.net.accuracy],
+            feed_dict=self.next_example())
+        self.test_writer.add_summary(summary, global_step)
+        return global_step, accuracy
+
+    def next_example(self):
+        if self.is_training is False:
+            label, example = self.test_reader.get_random_example()
+        else:
+            label, example = self.train_reader.get_random_example()
+        return {self.net.x: example,
+                self.net.y: label,
+                self.net.keep_prob: self.keep_prob}
+
+    def _add_accuracy(self, step_num, global_step, accuracy):
+        print('Step: {}. Global Step: {}. Accuracy: {}.'.format(step_num, global_step, accuracy))
+        if accuracy == 1:
+            self.ten_accuracy.append(1)
+        if step_num % 10 == 0:
+            print('Accuracy for 10 last steps:', sum(self.ten_accuracy) / 10)
+            self.epoch_accuracy.append(sum(self.ten_accuracy) / 10)
+            self.ten_accuracy = []
+            if step_num % 100 == 0:
+                print('Epoch accuracy:', sum(self.epoch_accuracy) / len(self.epoch_accuracy))
+                self.epoch_accuracy = []
+
+    def _restore_checkpoint_or_init(self, sess):
+        import os
+        if os.path.exists(self.chkpt_file):
+            self.net.saver.restore(sess, self.chkpt_file)
+            print("Model restored.")
+        else:
+            sess.run(tf.local_variables_initializer())
+            sess.run(tf.global_variables_initializer())
+            print('Parameters were initialized')
+        self.net.print_model()
+
     def _evaluate_train(self):
-        self.net = Network(True)
+        self.keep_prob = 0.75
+        self.is_training = True
+        self.net = Network(self.is_training)
         self.ten_accuracy = []
         self.epoch_accuracy = []
         self.train_writer = tf.summary.FileWriter(self.train_logs_path, graph=self.net.graph)
-        # self.test_writer = tf.summary.FileWriter(self.test_logs_path, graph=self.net.graph)
 
         with tf.Session(graph=self.net.graph) as sess:
-            if FLAGS.restore:
-                self.net.saver.restore(sess, self.chkpt_file)
-                print("Model restored.")
-            else:
-                sess.run(tf.local_variables_initializer())
-                sess.run(tf.global_variables_initializer())
-                print('Parameters were initialized')
-            self.net.print_model()
+            self._restore_checkpoint_or_init(sess)
 
             step_num = 1
             max_steps = FLAGS.epoch * 100
@@ -60,47 +109,17 @@ class Learning:
                     self._add_accuracy(step_num, gs, acc)
                 step_num += 1
 
-    def _train_step(self, sess, run_options=None, run_metadata=None):
-        if run_options is not None:
-            _, summary, global_step, accuracy = sess.run(
-                [self.net.train_step, self.net.summary_op, self.net.global_step, self.net.accuracy],
-                feed_dict=self.next_example(), options=run_options, run_metadata=run_metadata)
-            self.train_writer.add_run_metadata(run_metadata, 'step{}'.format(global_step), global_step)
-            print('Adding run metadata for', global_step)
-        else:
-            _, summary, global_step, accuracy = sess.run(
-                [self.net.train_step, self.net.summary_op, self.net.global_step, self.net.accuracy],
-                feed_dict=self.next_example())
-        self.train_writer.add_summary(summary, global_step)
-        return global_step, accuracy
-
-    def next_example(self):
-        if self.is_training is False:
-            label, example = self.test_reader.get_random_example()
-        else:
-            label, example = self.train_reader.get_random_example()
-        return {self.net.x: example, self.net.y: label}
-
-    def _add_accuracy(self, step_num, global_step, accuracy):
-        print('Step: {}. Global Step: {}. Accuracy: {}.'.format(step_num, global_step, accuracy))
-        if accuracy == 1:
-            self.ten_accuracy.append(1)
-        if step_num % 10 == 0:
-            print('Accuracy for 10 last steps:', sum(self.ten_accuracy) / 10)
-            self.epoch_accuracy.append(sum(self.ten_accuracy) / 10)
-            self.ten_accuracy = []
-            if step_num % 100 == 0:
-                print('Epoch accuracy:', sum(self.epoch_accuracy) / len(self.epoch_accuracy))
-                self.epoch_accuracy = []
-
     def _evaluate_test(self):
-        self.net = Network(False)
+        self.keep_prob = 1.0
+        self.is_training = False
+        self.net = Network(self.is_training)
         self.ten_accuracy = []
         self.epoch_accuracy = []
         self.test_writer = tf.summary.FileWriter(self.test_logs_path, graph=self.net.graph)
-        #TODO: reset graph and update model
+
+        # TODO: reset graph and update model
         with tf.Session(graph=self.net.graph) as sess:
-            self.net.saver.restore(sess, self.chkpt_file)
+            self._restore_checkpoint_or_init(sess)
             step_num = 1
             max_steps = FLAGS.epoch * 100
             while step_num <= max_steps:
@@ -113,13 +132,8 @@ class Learning:
                     gs, acc = self._test_step(sess)
                     self._add_accuracy(step_num, gs, acc)
                 step_num += 1
-            self.net = Network(True)
-            self.net.saver.restore(sess, self.chkpt_file)
 
-    def _test_step(self, sess):
-        #TODO: New reader for test on all videos
-        summary, global_step, accuracy = sess.run(
-                [self.net.summary_op, self.net.global_step, self.net.accuracy],
-                feed_dict=self.next_example())
-        self.test_writer.add_summary(summary, global_step)
-        return global_step, accuracy
+            self.keep_prob = 0.75
+            self.is_training = True
+            self.net = Network(self.is_training)
+            self.net.saver.restore(sess, self.chkpt_file)

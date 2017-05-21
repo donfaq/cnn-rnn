@@ -7,9 +7,10 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class Model:
-    def __init__(self, inputs, is_training):
+    def __init__(self, inputs, is_training, keep_prob):
         self.inputs = inputs
         self.is_training = is_training
+        self.keep_prob = keep_prob
         self.logits = self._init_model()
 
     def _init_model(self):
@@ -30,13 +31,15 @@ class Model:
                             weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
                             trainable=self.is_training):
             with tf.variable_scope('Convolution', [input]):
-                conv1 = slim.conv2d(input, 32, [1, 1], stride=2, scope='Conv1',
-                                    normalizer_fn=slim.batch_norm,
-                                    normalizer_params={'is_training': self.is_training})
-                pool2 = slim.max_pool2d(conv1, [3, 3], scope='Pool1', stride=1)
-                conv2 = slim.conv2d(pool2, 32, [3, 3], scope='Conv2')
-                pool3 = slim.max_pool2d(conv2, [3, 3], scope='Pool2', stride=1)
-                return slim.conv2d(pool3, 32, [3, 3], stride=2, scope='Conv3')
+                net = slim.conv2d(input, 32, [1, 1], stride=2, scope='Conv1',
+                                  normalizer_fn=slim.batch_norm,
+                                  normalizer_params={'is_training': self.is_training})
+                net = slim.max_pool2d(net, [3, 3], scope='Pool1', stride=1)
+                net = slim.conv2d(net, 32, [3, 3], scope='Conv2')
+                net = slim.dropout(net, self.keep_prob, scope='Dropout')
+                net = slim.max_pool2d(net, [3, 3], scope='Pool2', stride=1)
+                net = slim.conv2d(net, 32, [3, 3], stride=2, scope='Conv3')
+                return net
 
     def _inception_cnn(self, inputs):
         conv1 = slim.conv2d(inputs, 32, [3, 3], stride=2, padding='VALID', scope='Conv2d_1a_3x3')
@@ -89,9 +92,9 @@ class Model:
             net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv5')
             net = slim.max_pool2d(net, [2, 2], scope='pool5')
             net = slim.fully_connected(net, 4096, scope='fc6')
-            net = slim.dropout(net, 0.5, scope='dropout6')
+            net = slim.dropout(net, self.keep_prob, scope='dropout6')
             net = slim.fully_connected(net, 4096, scope='fc7')
-            net = slim.dropout(net, 0.5, scope='dropout7')
+            net = slim.dropout(net, self.keep_prob, scope='dropout7')
             net = slim.fully_connected(net, 1000, activation_fn=None, scope='fc8')
         return net
 

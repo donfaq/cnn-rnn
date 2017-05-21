@@ -10,10 +10,6 @@ FLAGS = tf.app.flags.FLAGS
 class Dataset:
     def __init__(self):
         self.zip_options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
-        # self.BATCH_SIZE = args.size
-        # self.STEP = args.step
-        # self.HEIGHT = args.height
-        # self.WIDTH = args.width
 
     @staticmethod
     def from_BRG_to_RGB(img):
