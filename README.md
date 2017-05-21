@@ -21,6 +21,7 @@ Parameter|Default value|Description
 `height` | 240 | Height of frames
 `width` | 320 | Width of frames
 `lrate` | 1e-4 | Learning rate
+`logdir`|network/logs| Path to store logs and checkpoints
 `conv` | standard | Type of CNN block (inception/vgg16)
 `rnn` | GRU | Type of RNN block (LSTM/GRU)
 `update` | False | Re-Generate TFRecords

@@ -11,9 +11,12 @@ class Learning:
     def __init__(self):
         self.train_reader = Reader.Reader("dataset/data/segmented_set1/*.tfr")
         self.test_reader = Reader.Reader("dataset/data/segmented_set2/*.tfr")
-        self.train_logs_path = 'network/train_logs'
-        self.test_logs_path = 'network/test_logs'
-        self.chkpt_file = self.train_logs_path + "/model.ckpt"
+
+        self.logs_dir = FLAGS.logdir
+        self.train_logs_path = self.logs_dir + '/train_logs'
+        self.test_logs_path = self.logs_dir + '/test_logs'
+        self.chkpt_file = self.logs_dir + "/model.ckpt"
+
         self.ten_accuracy = []
         self.epoch_accuracy = []
         if FLAGS.test is True:
@@ -95,17 +98,9 @@ class Learning:
         self.ten_accuracy = []
         self.epoch_accuracy = []
         self.test_writer = tf.summary.FileWriter(self.test_logs_path, graph=self.net.graph)
-
+        #TODO: reset graph and update model
         with tf.Session(graph=self.net.graph) as sess:
-            if FLAGS.restore:
-                self.net.saver.restore(sess, self.chkpt_file)
-                print("Model restored.")
-            else:
-                sess.run(tf.local_variables_initializer())
-                sess.run(tf.global_variables_initializer())
-                print('Parameters were initialized')
-            self.net.print_model()
-
+            self.net.saver.restore(sess, self.chkpt_file)
             step_num = 1
             max_steps = FLAGS.epoch * 100
             while step_num <= max_steps:
@@ -122,6 +117,7 @@ class Learning:
             self.net.saver.restore(sess, self.chkpt_file)
 
     def _test_step(self, sess):
+        #TODO: New reader for test on all videos
         summary, global_step, accuracy = sess.run(
                 [self.net.summary_op, self.net.global_step, self.net.accuracy],
                 feed_dict=self.next_example())
